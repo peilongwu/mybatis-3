@@ -1,5 +1,5 @@
-/*
- *    Copyright 2009-2013 the original author or authors.
+/**
+ *    Copyright 2009-2019 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -31,22 +31,24 @@ import org.apache.ibatis.session.RowBounds;
  * @author Jeff Butler
  */
 public class SelectKeyGenerator implements KeyGenerator {
-  
+
   public static final String SELECT_KEY_SUFFIX = "!selectKey";
-  private boolean executeBefore;
-  private MappedStatement keyStatement;
+  private final boolean executeBefore;
+  private final MappedStatement keyStatement;
 
   public SelectKeyGenerator(MappedStatement keyStatement, boolean executeBefore) {
     this.executeBefore = executeBefore;
     this.keyStatement = keyStatement;
   }
 
+  @Override
   public void processBefore(Executor executor, MappedStatement ms, Statement stmt, Object parameter) {
     if (executeBefore) {
       processGeneratedKeys(executor, ms, parameter);
     }
   }
 
+  @Override
   public void processAfter(Executor executor, MappedStatement ms, Statement stmt, Object parameter) {
     if (!executeBefore) {
       processGeneratedKeys(executor, ms, parameter);
@@ -65,7 +67,7 @@ public class SelectKeyGenerator implements KeyGenerator {
           Executor keyExecutor = configuration.newExecutor(executor.getTransaction(), ExecutorType.SIMPLE);
           List<Object> values = keyExecutor.query(keyStatement, parameter, RowBounds.DEFAULT, Executor.NO_RESULT_HANDLER);
           if (values.size() == 0) {
-            throw new ExecutorException("SelectKey returned no data.");            
+            throw new ExecutorException("SelectKey returned no data.");
           } else if (values.size() > 1) {
             throw new ExecutorException("SelectKey returned more than one value.");
           } else {
@@ -94,11 +96,11 @@ public class SelectKeyGenerator implements KeyGenerator {
   private void handleMultipleProperties(String[] keyProperties,
       MetaObject metaParam, MetaObject metaResult) {
     String[] keyColumns = keyStatement.getKeyColumns();
-      
+
     if (keyColumns == null || keyColumns.length == 0) {
       // no key columns specified, just use the property names
-      for (int i = 0; i < keyProperties.length; i++) {
-        setValue(metaParam, keyProperties[i], metaResult.getValue(keyProperties[i]));
+      for (String keyProperty : keyProperties) {
+        setValue(metaParam, keyProperty, metaResult.getValue(keyProperty));
       }
     } else {
       if (keyColumns.length != keyProperties.length) {

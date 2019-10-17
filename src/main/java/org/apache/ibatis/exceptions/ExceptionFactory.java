@@ -1,5 +1,5 @@
-/*
- *    Copyright 2009-2012 the original author or authors.
+/**
+ *    Copyright 2009-2015 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,6 +21,10 @@ import org.apache.ibatis.executor.ErrorContext;
  * @author Clinton Begin
  */
 public class ExceptionFactory {
+
+  private ExceptionFactory() {
+    // Prevent Instantiation
+  }
 
   public static RuntimeException wrapException(String message, Exception e) {
     return new PersistenceException(ErrorContext.instance().message(message).cause(e).toString(), e);

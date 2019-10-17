@@ -1,5 +1,5 @@
-/*
- *    Copyright 2009-2012 the original author or authors.
+/**
+ *    Copyright 2009-2019 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
 import javax.sql.DataSource;
@@ -36,10 +37,10 @@ import org.apache.ibatis.io.Resources;
  * @author Eduardo Macarron
  */
 public class UnpooledDataSource implements DataSource {
-  
+
   private ClassLoader driverClassLoader;
   private Properties driverProperties;
-  private static Map<String, Driver> registeredDrivers = new ConcurrentHashMap<String, Driver>();
+  private static Map<String, Driver> registeredDrivers = new ConcurrentHashMap<>();
 
   private String driver;
   private String url;
@@ -48,6 +49,7 @@ public class UnpooledDataSource implements DataSource {
 
   private Boolean autoCommit;
   private Integer defaultTransactionIsolationLevel;
+  private Integer defaultNetworkTimeout;
 
   static {
     Enumeration<Driver> drivers = DriverManager.getDrivers();
@@ -88,27 +90,33 @@ public class UnpooledDataSource implements DataSource {
     this.driverProperties = driverProperties;
   }
 
+  @Override
   public Connection getConnection() throws SQLException {
     return doGetConnection(username, password);
   }
 
+  @Override
   public Connection getConnection(String username, String password) throws SQLException {
     return doGetConnection(username, password);
   }
-  
-  public void setLoginTimeout(int loginTimeout) throws SQLException {
+
+  @Override
+  public void setLoginTimeout(int loginTimeout) {
     DriverManager.setLoginTimeout(loginTimeout);
   }
 
-  public int getLoginTimeout() throws SQLException {
+  @Override
+  public int getLoginTimeout() {
     return DriverManager.getLoginTimeout();
   }
 
-  public void setLogWriter(PrintWriter logWriter) throws SQLException {
+  @Override
+  public void setLogWriter(PrintWriter logWriter) {
     DriverManager.setLogWriter(logWriter);
   }
 
-  public PrintWriter getLogWriter() throws SQLException {
+  @Override
+  public PrintWriter getLogWriter() {
     return DriverManager.getLogWriter();
   }
 
@@ -128,7 +136,7 @@ public class UnpooledDataSource implements DataSource {
     this.driverProperties = driverProperties;
   }
 
-  public String getDriver() {
+  public synchronized String getDriver() {
     return driver;
   }
 
@@ -176,6 +184,24 @@ public class UnpooledDataSource implements DataSource {
     this.defaultTransactionIsolationLevel = defaultTransactionIsolationLevel;
   }
 
+  /**
+   * @since 3.5.2
+   */
+  public Integer getDefaultNetworkTimeout() {
+    return defaultNetworkTimeout;
+  }
+
+  /**
+   * Sets the default network timeout value to wait for the database operation to complete. See {@link Connection#setNetworkTimeout(java.util.concurrent.Executor, int)}
+   *
+   * @param defaultNetworkTimeout
+   *          The time in milliseconds to wait for the database operation to complete.
+   * @since 3.5.2
+   */
+  public void setDefaultNetworkTimeout(Integer defaultNetworkTimeout) {
+    this.defaultNetworkTimeout = defaultNetworkTimeout;
+  }
+
   private Connection doGetConnection(String username, String password) throws SQLException {
     Properties props = new Properties();
     if (driverProperties != null) {
@@ -208,7 +234,7 @@ public class UnpooledDataSource implements DataSource {
         }
         // DriverManager requires the driver to be loaded via the system ClassLoader.
         // http://www.kfu.com/~nsayer/Java/dyn-jdbc.html
-        Driver driverInstance = (Driver)driverType.newInstance();
+        Driver driverInstance = (Driver)driverType.getDeclaredConstructor().newInstance();
         DriverManager.registerDriver(new DriverProxy(driverInstance));
         registeredDrivers.put(driver, driverInstance);
       } catch (Exception e) {
@@ -218,6 +244,9 @@ public class UnpooledDataSource implements DataSource {
   }
 
   private void configureConnection(Connection conn) throws SQLException {
+    if (defaultNetworkTimeout != null) {
+      conn.setNetworkTimeout(Executors.newSingleThreadExecutor(), defaultNetworkTimeout);
+    }
     if (autoCommit != null && autoCommit != conn.getAutoCommit()) {
       conn.setAutoCommit(autoCommit);
     }
@@ -233,45 +262,56 @@ public class UnpooledDataSource implements DataSource {
       this.driver = d;
     }
 
+    @Override
     public boolean acceptsURL(String u) throws SQLException {
       return this.driver.acceptsURL(u);
     }
 
+    @Override
     public Connection connect(String u, Properties p) throws SQLException {
       return this.driver.connect(u, p);
     }
 
+    @Override
     public int getMajorVersion() {
       return this.driver.getMajorVersion();
     }
 
+    @Override
     public int getMinorVersion() {
       return this.driver.getMinorVersion();
     }
 
+    @Override
     public DriverPropertyInfo[] getPropertyInfo(String u, Properties p) throws SQLException {
       return this.driver.getPropertyInfo(u, p);
     }
 
+    @Override
     public boolean jdbcCompliant() {
       return this.driver.jdbcCompliant();
     }
 
+    @Override
     public Logger getParentLogger() {
       return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     }
   }
 
+  @Override
   public <T> T unwrap(Class<T> iface) throws SQLException {
     throw new SQLException(getClass().getName() + " is not a wrapper.");
   }
 
+  @Override
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return false;
   }
 
+  @Override
   public Logger getParentLogger() {
-    return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME); // requires JDK version 1.6
+    // requires JDK version 1.6
+    return Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
   }
 
 }

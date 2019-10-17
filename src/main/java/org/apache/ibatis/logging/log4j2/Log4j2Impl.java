@@ -1,5 +1,5 @@
-/*
- *    Copyright 2013 the original author or authors.
+/**
+ *    Copyright 2009-2017 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import org.apache.logging.log4j.spi.AbstractLogger;
  */
 public class Log4j2Impl implements Log {
 
-  private Log log;
+  private final Log log;
 
   public Log4j2Impl(String clazz) {
     Logger logger = LogManager.getLogger(clazz);
@@ -37,30 +37,37 @@ public class Log4j2Impl implements Log {
     }
   }
 
+  @Override
   public boolean isDebugEnabled() {
     return log.isDebugEnabled();
   }
 
+  @Override
   public boolean isTraceEnabled() {
     return log.isTraceEnabled();
   }
 
+  @Override
   public void error(String s, Throwable e) {
     log.error(s, e);
   }
 
+  @Override
   public void error(String s) {
     log.error(s);
   }
 
+  @Override
   public void debug(String s) {
     log.debug(s);
   }
 
+  @Override
   public void trace(String s) {
     log.trace(s);
   }
 
+  @Override
   public void warn(String s) {
     log.warn(s);
   }

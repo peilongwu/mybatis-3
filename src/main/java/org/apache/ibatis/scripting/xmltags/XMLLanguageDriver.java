@@ -1,5 +1,5 @@
-/*
- *    Copyright 2009-2014 the original author or authors.
+/**
+ *    Copyright 2009-2015 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -33,21 +33,26 @@ import org.apache.ibatis.session.Configuration;
  */
 public class XMLLanguageDriver implements LanguageDriver {
 
+  @Override
   public ParameterHandler createParameterHandler(MappedStatement mappedStatement, Object parameterObject, BoundSql boundSql) {
     return new DefaultParameterHandler(mappedStatement, parameterObject, boundSql);
   }
 
+  @Override
   public SqlSource createSqlSource(Configuration configuration, XNode script, Class<?> parameterType) {
     XMLScriptBuilder builder = new XMLScriptBuilder(configuration, script, parameterType);
     return builder.parseScriptNode();
   }
 
+  @Override
   public SqlSource createSqlSource(Configuration configuration, String script, Class<?> parameterType) {
-    if (script.startsWith("<script>")) { // issue #3
+    // issue #3
+    if (script.startsWith("<script>")) {
       XPathParser parser = new XPathParser(script, false, configuration.getVariables(), new XMLMapperEntityResolver());
       return createSqlSource(configuration, parser.evalNode("/script"), parameterType);
     } else {
-      script = PropertyParser.parse(script, configuration.getVariables()); // issue #127
+      // issue #127
+      script = PropertyParser.parse(script, configuration.getVariables());
       TextSqlNode textSqlNode = new TextSqlNode(script);
       if (textSqlNode.isDynamic()) {
         return new DynamicSqlSource(configuration, textSqlNode);

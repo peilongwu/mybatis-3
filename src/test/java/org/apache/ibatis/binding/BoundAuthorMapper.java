@@ -1,5 +1,5 @@
-/*
- *    Copyright 2009-2011 the original author or authors.
+/**
+ *    Copyright 2009-2018 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
  */
 package org.apache.ibatis.binding;
 
-import domain.blog.Author;
-import domain.blog.Post;
-import domain.blog.Section;
 import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.domain.blog.Author;
+import org.apache.ibatis.domain.blog.Post;
+import org.apache.ibatis.domain.blog.Section;
+import org.apache.ibatis.executor.BatchResult;
 import org.apache.ibatis.session.RowBounds;
 
 import java.util.List;
@@ -37,6 +38,10 @@ public interface BoundAuthorMapper {
   //======================================================
 
   int insertAuthor(Author author);
+
+  int insertAuthorInvalidSelectKey(Author author);
+
+  int insertAuthorInvalidInsert(Author author);
 
   int insertAuthorDynamic(Author author);
 
@@ -88,4 +93,8 @@ public interface BoundAuthorMapper {
                                     RowBounds rowBounds,
                                     @Param("two") int two,
                                     int three);
+
+  @Flush
+  List<BatchResult> flush();
+
 }

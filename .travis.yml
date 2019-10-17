@@ -1,16 +1,25 @@
 language: java
-jdk:
-  - oraclejdk7
-  - openjdk7
-  - openjdk6
-after_success:
-  - "mvn clean"
-  - "git clone -b travis `git config --get remote.origin.url` target/travis"
-  - "mvn deploy -Dmaven.test.skip=true --settings target/travis/settings.xml"
 
-branches:
-  except:
-    - travis
+jdk:
+  - openjdk-ea
+  - openjdk13
+  - openjdk12
+  - openjdk11
+  - oraclejdk8
+
+services:
+  - docker
+
+cache:
+  directories:
+    - $HOME/.m2
+
+before_install:
+  - echo "MAVEN_OPTS='-Dlicense.skip=true'" > ~/.mavenrc
+
+after_success:
+  - chmod -R 777 ./travis/after_success.sh
+  - ./travis/after_success.sh
 
 env:
   global:

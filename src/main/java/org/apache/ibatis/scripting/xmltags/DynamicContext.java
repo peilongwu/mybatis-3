@@ -1,5 +1,5 @@
-/*
- *    Copyright 2009-2012 the original author or authors.
+/**
+ *    Copyright 2009-2019 the original author or authors.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@ package org.apache.ibatis.scripting.xmltags;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 
-import ognl.OgnlException;
+import ognl.OgnlContext;
 import ognl.OgnlRuntime;
 import ognl.PropertyAccessor;
 
@@ -38,15 +39,16 @@ public class DynamicContext {
   }
 
   private final ContextMap bindings;
-  private final StringBuilder sqlBuilder = new StringBuilder();
+  private final StringJoiner sqlBuilder = new StringJoiner(" ");
   private int uniqueNumber = 0;
 
   public DynamicContext(Configuration configuration, Object parameterObject) {
     if (parameterObject != null && !(parameterObject instanceof Map)) {
       MetaObject metaObject = configuration.newMetaObject(parameterObject);
-      bindings = new ContextMap(metaObject);
+      boolean existsTypeHandler = configuration.getTypeHandlerRegistry().hasTypeHandler(parameterObject.getClass());
+      bindings = new ContextMap(metaObject, existsTypeHandler);
     } else {
-      bindings = new ContextMap(null);
+      bindings = new ContextMap(null, false);
     }
     bindings.put(PARAMETER_OBJECT_KEY, parameterObject);
     bindings.put(DATABASE_ID_KEY, configuration.getDatabaseId());
@@ -61,8 +63,7 @@ public class DynamicContext {
   }
 
   public void appendSql(String sql) {
-    sqlBuilder.append(sql);
-    sqlBuilder.append(" ");
+    sqlBuilder.add(sql);
   }
 
   public String getSql() {
@@ -75,17 +76,14 @@ public class DynamicContext {
 
   static class ContextMap extends HashMap<String, Object> {
     private static final long serialVersionUID = 2977601501966151582L;
+    private final MetaObject parameterMetaObject;
+    private final boolean fallbackParameterObject;
 
-    private MetaObject parameterMetaObject;
-    public ContextMap(MetaObject parameterMetaObject) {
+    public ContextMap(MetaObject parameterMetaObject, boolean fallbackParameterObject) {
       this.parameterMetaObject = parameterMetaObject;
+      this.fallbackParameterObject = fallbackParameterObject;
     }
 
-    @Override
-    public Object put(String key, Object value) {
-      return super.put(key, value);
-    }
-    
     @Override
     public Object get(Object key) {
       String strKey = (String) key;
@@ -93,43 +91,52 @@ public class DynamicContext {
         return super.get(strKey);
       }
 
-      if (parameterMetaObject != null) {
-        Object object = parameterMetaObject.getValue(strKey);
-        // issue #61 do not modify the context when reading
-//        if (object != null) { 
-//          super.put(strKey, object);
-//        }
-
-        return object;
+      if (parameterMetaObject == null) {
+        return null;
       }
 
-      return null;
+      if (fallbackParameterObject && !parameterMetaObject.hasGetter(strKey)) {
+        return parameterMetaObject.getOriginalObject();
+      } else {
+        // issue #61 do not modify the context when reading
+        return parameterMetaObject.getValue(strKey);
+      }
     }
   }
 
   static class ContextAccessor implements PropertyAccessor {
 
-    public Object getProperty(Map context, Object target, Object name)
-        throws OgnlException {
+    @Override
+    public Object getProperty(Map context, Object target, Object name) {
       Map map = (Map) target;
 
       Object result = map.get(name);
-      if (result != null) {
+      if (map.containsKey(name) || result != null) {
         return result;
       }
 
       Object parameterObject = map.get(PARAMETER_OBJECT_KEY);
       if (parameterObject instanceof Map) {
-    	  return ((Map)parameterObject).get(name);
+        return ((Map)parameterObject).get(name);
       }
 
       return null;
     }
 
-    public void setProperty(Map context, Object target, Object name, Object value)
-        throws OgnlException {
-      Map map = (Map) target;
+    @Override
+    public void setProperty(Map context, Object target, Object name, Object value) {
+      Map<Object, Object> map = (Map<Object, Object>) target;
       map.put(name, value);
+    }
+
+    @Override
+    public String getSourceAccessor(OgnlContext arg0, Object arg1, Object arg2) {
+      return null;
+    }
+
+    @Override
+    public String getSourceSetter(OgnlContext arg0, Object arg1, Object arg2) {
+      return null;
     }
   }
 }
